@@ -19,7 +19,8 @@
          handle_cast/2,
          handle_info/2,
          terminate/2,
-         code_change/3
+         code_change/3,
+         format_status/2
         ]).
 
 -define(STATE, ?MODULE).
@@ -54,7 +55,12 @@ unregister_name(NameServerRef, NameSpec) ->
     gen_server:cast(NameServerRef, {unregister_name, NameSpec}).
 
 whereis_name(NameServerRef, Name) ->
-    gen_server:call(NameServerRef, {whereis_name, Name}).
+    %% XXX:
+    case Name of
+        {single, Name2}    -> whereis_name(NameServerRef, Name2);
+        {multi, [Name2|_]} -> whereis_name(NameServerRef, Name2);
+        _ -> gen_server:call(NameServerRef, {whereis_name, Name})
+    end.
 
 registered_names(NameServerRef) ->
     gen_server:call(NameServerRef, registered_names).
@@ -98,6 +104,12 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+format_status(_Opt, [_PDict, State]) ->
+    #?STATE{server_name = Name, name_to_pid = NameToPid} = State,
+    {?MODULE,
+     [{server_name, Name},
+      {name_to_pid, dict:to_list(NameToPid)}]}.
 
 get_registered_names(State) ->
     dict:fetch_keys(State#?STATE.name_to_pid).

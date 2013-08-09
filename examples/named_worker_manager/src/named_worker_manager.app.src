@@ -1,0 +1,14 @@
+%%-*-erlang-*-
+{application, named_worker_manager,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  proc_ns
+                 ]},
+  {mod, { named_worker_manager_app, []}},
+  {env, []}
+ ]}.

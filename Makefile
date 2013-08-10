@@ -30,4 +30,4 @@ build_plt:
 	dialyzer --build_plt --apps erts kernel stdlib -r ebin
 
 dialyzer:
-	dialyzer --src -r src/ $(DIALYZER_OPTS)
+	dialyzer -r ebin $(DIALYZER_OPTS)

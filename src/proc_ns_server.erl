@@ -3,9 +3,8 @@
 -behaviour(gen_server).
 
 -export([
-         start_link/1,
+         start_link/0, start_link/1,
          
-         get_server_name/1,
          register_name/3,
          unregister_name/2,
          whereis_name/2,
@@ -27,17 +26,16 @@
 
 -record(?STATE,
         {
-          server_name  :: atom(),
           name_to_pid  :: dict(),
           pid_to_names :: dict()
         }).
 
-start_link(ServerName) ->
-    gen_server:start_link({local, ServerName}, ?MODULE, [ServerName], []).
+start_link() ->
+    gen_server:start_link(?MODULE, [], []).
 
-get_server_name(NameServerRef) ->
-    gen_server:call(NameServerRef, get_server_name).
-        
+start_link(ServerName) ->
+    gen_server:start_link({local, ServerName}, ?MODULE, [], []).
+
 register_name(NameServerRef, NameSpec, Pid) when is_pid(Pid) ->
     case NameSpec of
         {single, _} -> ok;
@@ -71,16 +69,13 @@ send(NameServerRef, Name, Msg) ->
         Pid       -> Pid ! Msg
     end.
 
-init([ServerName]) ->
+init([]) ->
     State = #?STATE{
-                server_name  = ServerName,
                 name_to_pid  = dict:new(),
                 pid_to_names = dict:new()
             },
     {ok, State}.
 
-handle_call(get_server_name, _From, State) ->
-    {reply, State#?STATE.server_name, State};
 handle_call({register_name, NameSpec, Pid}, _From, State) ->
     {Result, State2} = do_register_name(NameSpec, Pid, State),
     {reply, Result, State2};
@@ -106,10 +101,9 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 format_status(_Opt, [_PDict, State]) ->
-    #?STATE{server_name = Name, name_to_pid = NameToPid} = State,
+    #?STATE{name_to_pid = NameToPid} = State,
     {?MODULE,
-     [{server_name, Name},
-      {name_to_pid, dict:to_list(NameToPid)}]}.
+     [{name_to_pid, dict:to_list(NameToPid)}]}.
 
 get_registered_names(State) ->
     dict:fetch_keys(State#?STATE.name_to_pid).

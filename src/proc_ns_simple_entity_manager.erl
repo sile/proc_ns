@@ -74,7 +74,14 @@ init([SupervisorRef]) ->
     process_flag(trap_exit, true),
     case proc_ns:start_name_server() of
         {error, Reason} -> {stop, Reason};
-        {ok, Pid}       -> {ok, #?STATE{name_server = Pid, supervisor = SupervisorRef}}
+        {ok, Pid}       ->
+            case SupervisorRef of
+                {ParentSupervisorPid, EntitySupervisorId} ->
+                    gen_server:cast(self(), {resolve, ParentSupervisorPid, EntitySupervisorId}),
+                    {ok, #?STATE{name_server = Pid, supervisor = undefined}};
+                _ ->
+                    {ok, #?STATE{name_server = Pid, supervisor = SupervisorRef}}
+            end
     end.
 
 handle_call({reserve_entity, EntityIdSpec, Args}, _From, State) ->
@@ -100,6 +107,15 @@ handle_cast({release_entity, EntityPid}, State) ->
     {noreply, State};
 handle_cast(stop, State) ->
     {stop, normal, State};
+handle_cast({resolve, ParentSupervisorPid, EntitySupervisorId}, State) ->
+    Children = supervisor:which_children(ParentSupervisorPid),
+    case lists:keyfind(EntitySupervisorId, 1, Children) of
+        false ->
+            Reason = {entity_supervisor_no_exists, [{id , EntitySupervisorId}, {parent, ParentSupervisorPid}, {children, Children}]},
+            {stop, {error, Reason}, State};
+        {_, Pid, _, _} ->
+            {noreply, State#?STATE{supervisor = Pid}}
+    end;
 handle_cast(_Request, State) ->
     {noreply, State}.
 
